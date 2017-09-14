@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from lxml import etree #解析网页
 import os #文件操作
 import cookielib #cookie操作
+import re
 
 def getUrl():
   filename = 'cookie.txt'
@@ -28,7 +29,7 @@ def getUrl():
 def getHtml(url): 
   header = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3107.4 Safari/537.36',
-    'cookie':'user_trace_token=20170913211153-18c5fcea-db55-4cab-8179-60ff170bf9a9; Hm_lvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505308378; LGUID=20170913211154-1d5e76b6-9885-11e7-916c-525400f775ce; _ga=GA1.2.508912555.1505308378; _gid=GA1.2.1369602333.1505308381; showExpriedIndex=1; showExpriedCompanyHome=1; showExpriedMyPublish=1; hasDeliver=86; JSESSIONID=ABAAABAAAIAACBI152563A0F847949B8CEE0EE69CD607A1; X_HTTP_TOKEN=b43bc3b8df94b280deececc67b57024d; Hm_lpvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505317340; LGRID=20170913234117-fb70335d-9899-11e7-9173-5254005c3644; _putrc=F09C81F422A5F3C9; login=true; unick=%E5%BC%A0%E5%85%89%E8%BE%89; _gat=1; LGSID=20170913234117-fb703021-9899-11e7-9173-5254005c3644; PRE_UTM=; PRE_HOST=; PRE_SITE=; PRE_LAND=https%3A%2F%2Fwww.lagou.com%2Fmycenter%2Fcollections.html%3FpageNo%3D3'
+    'cookie':'user_trace_token=20170601194534-7364751b7aeb41d6b04a76184f19e2cd; LGUID=20170601194534-d2bfe997-46bf-11e7-8c7b-525400f775ce; JSESSIONID=ABAAABAAADEAAFIDDFF59CC92D58290373C9CB15448E28F; index_location_city=%E6%9D%AD%E5%B7%9E; TG-TRACK-CODE=jobs_code; Hm_lvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505094908,1505180138,1505283398,1505351459; Hm_lpvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505379394; _gid=GA1.2.1508216302.1504967615; _gat=1; _ga=GA1.2.686392921.1496317550; LGSID=20170914165539-7b8de16c-992a-11e7-9256-525400f775ce; PRE_UTM=; PRE_HOST=; PRE_SITE=https%3A%2F%2Fwww.lagou.com%2Fjobs%2F2416257.html; PRE_LAND=https%3A%2F%2Fwww.lagou.com%2Fjobs%2F2416257.html; LGRID=20170914165539-7b8de2e3-992a-11e7-9256-525400f775ce; _putrc=F09C81F422A5F3C9; login=true; unick=%E5%BC%A0%E5%85%89%E8%BE%89; showExpriedIndex=1; showExpriedCompanyHome=1; showExpriedMyPublish=1; hasDeliver=86'
   }
   req = requests.get(url = url, headers = header)
   #req = urllib2.Request('https://www.lagou.com/mycenter/collections.html?pageNo=2')
@@ -37,12 +38,17 @@ def getHtml(url):
 
 def getGroupList(html):
   soup = BeautifulSoup(html, 'lxml') #实例化soup
-  allPosition = soup.find_all('a', class_='target') #获取所有职位链接
-  groupList = [] #套图列表
-  for link in allImg:
-    img_html = getHtml(link['href']) #获取每个套图详情的源码
-    imgGroup_title = link.find_all('div', class_='random_title')[0].contents[0]
-    imgGroup = {'title': imgGroup_title, 'html': img_html}
+  allPosition = soup.find_all('div', 'co_item') #获取所有职位链接
+  groupList = [] #职位列表
+  for link in allPosition:
+    position_title = link.find('h2')['title'] #职位名称
+    position_link = link.find('a')['href'] #职位链接
+    company_name = link.find('div', 'co_cate').text #公司名称
+    position_html = getHtml(position_link) #获取每个职位详情的源码
+    position_soup = BeautifulSoup(position_html, 'lxml')
+    positionAddr = position_soup.find_all('div','work_addr') #获取详情中的地址
+    position_html = re.findall(r'\bwork_addr.*?</div>', position_html, re.S)
+    positionGroup = {'title': imgGroup_title, 'html': img_html}
     groupList.append(imgGroup)
   return groupList
 
