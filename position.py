@@ -9,7 +9,11 @@ from bs4 import BeautifulSoup
 from lxml import etree #解析网页
 import os #文件操作
 import cookielib #cookie操作
+import xlsxwriter
 import re
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 def getUrl():
   filename = 'cookie.txt'
@@ -29,7 +33,7 @@ def getUrl():
 def getHtml(url): 
   header = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3107.4 Safari/537.36',
-    'cookie':'user_trace_token=20170601194534-7364751b7aeb41d6b04a76184f19e2cd; LGUID=20170601194534-d2bfe997-46bf-11e7-8c7b-525400f775ce; JSESSIONID=ABAAABAAADEAAFIDDFF59CC92D58290373C9CB15448E28F; index_location_city=%E6%9D%AD%E5%B7%9E; TG-TRACK-CODE=jobs_code; Hm_lvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505094908,1505180138,1505283398,1505351459; Hm_lpvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505379394; _gid=GA1.2.1508216302.1504967615; _gat=1; _ga=GA1.2.686392921.1496317550; LGSID=20170914165539-7b8de16c-992a-11e7-9256-525400f775ce; PRE_UTM=; PRE_HOST=; PRE_SITE=https%3A%2F%2Fwww.lagou.com%2Fjobs%2F2416257.html; PRE_LAND=https%3A%2F%2Fwww.lagou.com%2Fjobs%2F2416257.html; LGRID=20170914165539-7b8de2e3-992a-11e7-9256-525400f775ce; _putrc=F09C81F422A5F3C9; login=true; unick=%E5%BC%A0%E5%85%89%E8%BE%89; showExpriedIndex=1; showExpriedCompanyHome=1; showExpriedMyPublish=1; hasDeliver=86'
+    'cookie':'user_trace_token=20170601194534-7364751b7aeb41d6b04a76184f19e2cd; LGUID=20170601194534-d2bfe997-46bf-11e7-8c7b-525400f775ce; JSESSIONID=ABAAABAAADEAAFI63E3696EBF2D8C24D5C6E4D9CBC17B4C; SEARCH_ID=9598c63a1c004841aecf9614ac6c8a90; _putrc=F09C81F422A5F3C9; login=true; unick=%E5%BC%A0%E5%85%89%E8%BE%89; showExpriedIndex=1; showExpriedCompanyHome=1; showExpriedMyPublish=1; hasDeliver=86; index_location_city=%E6%9D%AD%E5%B7%9E; TG-TRACK-CODE=favorite_guess; _gid=GA1.2.1508216302.1504967615; _ga=GA1.2.686392921.1496317550; LGSID=20170915153410-43df81cd-99e8-11e7-9193-5254005c3644; LGRID=20170915155218-cc2cd594-99ea-11e7-9193-5254005c3644; Hm_lvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505180138,1505283398,1505351459,1505438894; Hm_lpvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1505461997'
   }
   req = requests.get(url = url, headers = header)
   #req = urllib2.Request('https://www.lagou.com/mycenter/collections.html?pageNo=2')
@@ -39,61 +43,49 @@ def getHtml(url):
 def getGroupList(html):
   soup = BeautifulSoup(html, 'lxml') #实例化soup
   allPosition = soup.find_all('div', 'co_item') #获取所有职位链接
-  groupList = [] #职位列表
+  positionList = [] #职位列表
   for link in allPosition:
     position_title = link.find('h2')['title'] #职位名称
     position_link = link.find('a')['href'] #职位链接
     company_name = link.find('div', 'co_cate').text #公司名称
     position_html = getHtml(position_link) #获取每个职位详情的源码
     position_soup = BeautifulSoup(position_html, 'lxml')
-    positionAddr = position_soup.find_all('div','work_addr') #获取详情中的地址
-    position_html = re.findall(r'\bwork_addr.*?</div>', position_html, re.S)
-    positionGroup = {'title': imgGroup_title, 'html': img_html}
-    groupList.append(imgGroup)
-  return groupList
+    positionAddr = position_soup.find('div','work_addr') #获取详情中的地址
+    #position_html = re.findall(r'\bwork_addr.*?</div>', position_html, re.S)
+    position_addr_str = str(positionAddr.get_text(strip=True))
+    rule = re.compile(r'查看地图')
+    result = rule.sub('',position_addr_str)
+    position_info = []
+    position_info.append(position_title)
+    position_info.append(company_name)
+    position_info.append(position_link)
+    position_info.append(result)
+    #positionGroup = {'title': imgGroup_title, 'html': img_html}
+    positionList.append(position_info)
+  return positionList
 
-#获取图片地址
-def getImgSrc(groupList):
-  for group in groupList:
-    groupTitle = group['title']
-    groupHtml = group['html']
-    #创建文件夹
-    groupPath = 'H:\doutu2\\' + groupTitle
-    groupPath.translate("|\\?*<\":>+[]/'")
-    if not(os.path.exists(groupPath)):
-      os.makedirs(groupPath)
-    soup = etree.HTML(groupHtml)
-    items = soup.xpath('//div[@class="artile_des"]')
-    for item in items:
-      imgUrlList = item.xpath('table/tbody/tr/td/a/img/@src')
-      imgTitle = item.xpath('table/tbody/tr/td/a/img/@alt')
-      startSaveImg(groupTitle,imgUrlList, imgTitle)
-    
+#保存到Excel
+def saveToXls(groupList):
+  book = xlsxwriter.Workbook(r'E:\positions\favorite-position.xls')
+  tmp = book.add_worksheet()
+  row_num = len(groupList)
+  for i in range(1, row_num):
+    if i == 1:
+      tag_pos = "A%s" % i
+      tmp.write_row(tag_pos, ['职位名称', '公司名称', '职位链接', '详细地址'])
+    else:
+      con_pos = 'A%s' % i
+      k_v = groupList[i-2]
+      tmp.write_row(con_pos, k_v)
+  book.close()
 
-def saveImg(imgUrl, imgTitle, groupTitle):
-  #print imgTitle[0]
-  #print imgTitle[0].encode('utf-8')
-  #imgUrl = imgUrl.split('=')[-1][1:-2].replace('jp','jpg') #提取url
-  if imgUrl[0:2] == '//':
-   imgUrl = 'http:' + imgUrl
-  print('正在下载'  + imgUrl)
-  imgContent = requests.get( imgUrl).content
-  fileName = 'H:\doutu2\\' + groupTitle + '\\' + imgTitle[0] + '.jpg'
-  with open(unicode(fileName), 'wb') as f:
-    f.write(imgContent)
-
-def startSaveImg(groupTitle,imgUrlList, imgTitle):
-  for i in imgUrlList:
-    th = threading.Thread(target=saveImg, args=(i, imgTitle, groupTitle))
-    th.start()
 
 def main():
   defaultUrl = 'https://www.lagou.com/mycenter/collections.html?pageNo={}'
-  #defaultUrl = getUrl()
+  groupList = []
   for i in range(1,4):
     startHtml = getHtml(defaultUrl.format(i))
-    groupList = getGroupList(startHtml)
-    getImgSrc(groupList)
-
+    groupList.extend(getGroupList(startHtml))
+  saveToXls(groupList)
 main()
 print('爬取结束')
