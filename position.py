@@ -20,8 +20,8 @@ def getUrl():
   cookie = cookielib.MozillaCookieJar(filename)
   opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookie))
   postdata = urllib.urlencode({
-    'username':'17682339730',
-    'password':'admin.123'
+    'username':'',
+    'password':''
   })
   loginUrl = 'https://passport.lagou.com/login/login.html'
   result = opener.open(loginUrl, postdata)
