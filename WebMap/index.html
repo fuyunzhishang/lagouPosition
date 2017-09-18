@@ -51,10 +51,13 @@
 <body>
     Output Format:
     <select name="format" onchange="setfmt()">
-    <!-- <option value="csv" selected> CSV</option> -->
     <option value="json"> JSON</option>
     <option value="form"> FORMULAE</option>
     <option value="html"> HTML</option>
+    </select><br />
+    <select name="type" onchange="setfmt()">
+    <option value="collection"> COLLECTION</option>
+    <option value="search"> SEARCH</option>
     </select><br />
     <div id="drop">Drop a spreadsheet file here to see sheet data</div>
     <input type="file" name="xlfile" id="xlf" /> ... or click here to select a file
@@ -91,6 +94,14 @@
 
             var get_format = (function() {
                 var radios = document.getElementsByName("format");
+                return function() {
+                    for (var i = 0; i < radios.length; ++i)
+                        if (radios[i].checked || radios.length === 1) return radios[i].value;
+                };
+            })();
+
+            var get_type = (function() {
+                var radios = document.getElementsByName("type");
                 return function() {
                     for (var i = 0; i < radios.length; ++i)
                         if (radios[i].checked || radios.length === 1) return radios[i].value;
@@ -164,12 +175,24 @@
                 //return output;
                 var jsonData = JSON.parse(output)
                 var addrList = []
-                for (var i = 0; i < jsonData.Sheet1.length; i++) {
-                    var data = {}
-                    data.companyName = jsonData.Sheet1[i].公司名称.split('/')[0]
-                    data.addr = jsonData.Sheet1[i].详细地址
-                    addrList.push(data)
+                switch (get_type()) {
+                    case 'collection':
+                        for (var i = 0; i < jsonData.Sheet1.length; i++) {
+                            var data = {}
+                            data.companyName = jsonData.Sheet1[i].公司名称.split('/')[0]
+                            data.addr = jsonData.Sheet1[i].详细地址
+                            addrList.push(data)
+                        }
+                        break;
+                    case 'search':
+                        for (var i = 0; i < jsonData.Sheet1.length; i++) {
+                            var data = {}
+                            data.companyName = jsonData.Sheet1[i].companyName.replace(/有限公司|杭州/, '')
+                            data.addr = jsonData.Sheet1[i].positionAddress
+                            addrList.push(data)
+                        }
                 }
+
                 geocoder(addrList)
                     // if (OUT.innerText === undefined) OUT.textContent = output;
                     // else OUT.innerText = output;
@@ -303,7 +326,6 @@
             //查询地理编码
             for (var i = 0; i < addrList.length; i++) {
                 geocoder.getLocation(addrList[i].addr, (function(i) {
-                    console.trace()
                     return function(status, result) {
                         if (status === 'complete' && result.info === 'OK') {
                             var location = result.geocodes[0].location;
@@ -312,7 +334,6 @@
                             addrList[i].location = data;
                             addMarker(addrList[i]);
                             console.log(i)
-                            console.trace()
                         }
                     }
                 }(i)));
